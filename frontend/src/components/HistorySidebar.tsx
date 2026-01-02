@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, FileText, ChevronRight, ChevronDown, History, Calendar } from 'lucide-react';
-import { clsx } from 'clsx';
+import { Clock, ChevronRight, ChevronDown, History, Calendar } from 'lucide-react';
 
 interface Document {
     id: string; // absolute path
@@ -18,7 +17,6 @@ interface HistorySidebarProps {
 }
 
 const HistorySidebar: React.FC<HistorySidebarProps> = ({ onSelectDoc, refreshTrigger }) => {
-    const [documents, setDocuments] = useState<Document[]>([]);
     const [groupedDocs, setGroupedDocs] = useState<Record<string, Document[]>>({});
     const [expandedCompanies, setExpandedCompanies] = useState<Record<string, boolean>>({});
     const [loading, setLoading] = useState(false);
@@ -33,8 +31,6 @@ const HistorySidebar: React.FC<HistorySidebarProps> = ({ onSelectDoc, refreshTri
             const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
             const res = await fetch(`${API_URL}/documents`);
             const data = await res.json();
-            setDocuments(data.documents);
-
             // Group by company
             const groups: Record<string, Document[]> = {};
             data.documents.forEach((doc: Document) => {

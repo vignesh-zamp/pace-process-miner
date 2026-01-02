@@ -3,7 +3,7 @@ import VideoUpload from './components/VideoUpload';
 import SOPViewer from './components/SOPViewer';
 import HistorySidebar from './components/HistorySidebar';
 import Login from './components/Login';
-import { History, FileText, BrainCircuit, LayoutGrid, CheckCircle2, AlertCircle } from 'lucide-react';
+import { FileText, BrainCircuit, LayoutGrid, CheckCircle2 } from 'lucide-react';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);

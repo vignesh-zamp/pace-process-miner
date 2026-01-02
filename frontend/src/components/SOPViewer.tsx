@@ -24,13 +24,16 @@ const SOPViewer: React.FC<SOPViewerProps> = ({ content, processingTime }) => {
 
     const handleDownload = () => {
         const element = document.getElementById('sop-content');
+        if (!element) return;
+
         const opt = {
-            margin: 1,
-            filename: 'SOP_Document.pdf',
-            image: { type: 'jpeg', quality: 0.98 },
+            margin: 10,
+            filename: `SOP_${new Date().toISOString().split('T')[0]}.pdf`,
+            image: { type: 'jpeg' as const, quality: 0.98 },
             html2canvas: { scale: 2 },
-            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
+        // @ts-ignore
         html2pdf().set(opt).from(element).save();
     };
 

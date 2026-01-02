@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from 'react';
 import { Upload, FileVideo, FileText, FileAudio, Image as ImageIcon, X, Loader2, AlertCircle, PlayCircle, Layers } from 'lucide-react';
-import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 interface VideoUploadProps {
