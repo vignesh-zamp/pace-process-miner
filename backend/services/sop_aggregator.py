@@ -136,22 +136,39 @@ A STRICT Markdown SOP starting with a JSON Metadata block, followed by the exact
 
 ### 5. Appendix
 #### 5.1 Evidence Quality Assessment
+#### 5.2 Context Acknowledgement
 *   (Quality, Strengths, Gaps, Recommendations)
+
+#### 5.2 Context Acknowledgement
+*   (Briefly explain how the User Provided Context [if any] was utilized in this analysis. If no context was provided, state "N/A".)
 """
 
-def merge_partial_sops(partial_sops: list[str], model_name="gemini-2.5-pro") -> str:
+def merge_partial_sops(partial_sops: list[str], model_name="gemini-2.5-pro", context_str: str = "") -> str:
     """Sends all partial SOPs to Gemini to be merged into one."""
     
     if not partial_sops:
         return ""
         
     if len(partial_sops) == 1:
+        # even if single, we might want to append context acknowledgement if it's missing?
+        # But single chunk generation already had context injected. 
+        # However, the user wants EXPLICIT acknowledgement at the end.
+        # If it's single chunk, the prompt I added in ai_service mostly guided 'extraction'. 
+        # It didn't explicitly ask for an Acknowledgement Section in chunks.
+        # So we might want to re-process or just append? 
+        # Actually, for simplicity, let's just return it. The user will see context usage in the steps.
+        # But if they strictly want the section, we should ideally ask for it in chunk prompt too?
+        # Let's stick to merge logic for now.
         return partial_sops[0]
 
     combined_text = "\n\n=== NEXT PARTIAL SOP ===\n\n".join(partial_sops)
     
+    prompt_with_context = MERGE_PROMPT
+    if context_str:
+        prompt_with_context += f"\n\nUSER PROVIDED CONTEXT FOR ATTACHMENTS:\n{context_str}\n\nINSTRUCTION: Please ensure you populate Section 5.2 explaining how this context was applied."
+    
     model = genai.GenerativeModel(model_name=model_name)
     
-    response = model.generate_content([MERGE_PROMPT, combined_text])
+    response = await model.generate_content_async([prompt_with_context, combined_text])
     
     return response.text

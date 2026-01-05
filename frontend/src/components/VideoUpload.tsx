@@ -11,7 +11,7 @@ interface VideoUploadProps {
 const VideoUpload: React.FC<VideoUploadProps> = ({ onSopGenerated, isLoading, setIsLoading }) => {
     const [error, setError] = useState<string | null>(null);
     const [dragActive, setDragActive] = useState(false);
-    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+    const [selectedFiles, setSelectedFiles] = useState<{ file: File; context: string }[]>([]);
 
     const handleDrag = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -25,7 +25,7 @@ const VideoUpload: React.FC<VideoUploadProps> = ({ onSopGenerated, isLoading, se
 
     const handleFiles = (files: FileList | null) => {
         if (!files) return;
-        const newFiles = Array.from(files);
+        const newFiles = Array.from(files).map(file => ({ file, context: '' }));
         setSelectedFiles(prev => [...prev, ...newFiles]);
         setError(null);
     };
@@ -41,9 +41,14 @@ const VideoUpload: React.FC<VideoUploadProps> = ({ onSopGenerated, isLoading, se
         setError(null);
 
         const formData = new FormData();
-        selectedFiles.forEach(file => {
+        const contextMap: Record<string, string> = {};
+
+        selectedFiles.forEach(({ file, context }) => {
             formData.append('files', file);
+            contextMap[file.name] = context;
         });
+
+        formData.append('file_contexts', JSON.stringify(contextMap));
 
         try {
             const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -160,11 +165,25 @@ const VideoUpload: React.FC<VideoUploadProps> = ({ onSopGenerated, isLoading, se
                             <div key={idx} className="flex items-center justify-between p-3 hover:bg-slate-50 group">
                                 <div className="flex items-center gap-3 overflow-hidden">
                                     <div className="p-2 bg-slate-100 rounded-lg">
-                                        {getFileIcon(file.type)}
+                                        {getFileIcon(file.file.type)}
                                     </div>
-                                    <div className="min-w-0">
-                                        <p className="text-sm font-medium text-slate-700 truncate">{file.name}</p>
-                                        <p className="text-xs text-slate-400">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-medium text-slate-700 truncate">{file.file.name}</p>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <p className="text-xs text-slate-400">{(file.file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                            <input
+                                                type="text"
+                                                placeholder="Add context (optional)..."
+                                                value={file.context}
+                                                onChange={(e) => {
+                                                    const newFiles = [...selectedFiles];
+                                                    newFiles[idx].context = e.target.value;
+                                                    setSelectedFiles(newFiles);
+                                                }}
+                                                className="text-xs px-2 py-0.5 border border-slate-200 rounded min-w-[200px] text-slate-600 focus:outline-none focus:border-blue-500"
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                                 <button

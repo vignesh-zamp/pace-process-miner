@@ -31,7 +31,7 @@ def wait_for_files_active(files):
 import asyncio
 from .sop_aggregator import merge_partial_sops
 
-async def generate_sop_for_chunk(chunk_path: str, chunk_index: int, total_chunks: int, prompt: str, context_files: list = []):
+async def generate_sop_for_chunk(chunk_path: str, chunk_index: int, total_chunks: int, prompt: str, context_files: list = [], context_str: str = ""):
     """Processes a single video chunk with additional context files."""
     print(f"Processing chunk {chunk_index + 1}/{total_chunks}: {chunk_path}")
     
@@ -51,6 +51,9 @@ async def generate_sop_for_chunk(chunk_path: str, chunk_index: int, total_chunks
     You have additionally been provided with {len(context_files)} context files (PDFs/Images).
     Use these context files to verify details (e.g. Rate Cards, Invoices) seen in the video.
     Do not hallucinate steps from outside this video segment.
+
+    USER PROVIDED CONTEXT FOR ATTACHMENTS:
+    {context_str}
     """
     
     # Construct Multimodal Request: [Video, *ContextFiles, Prompt]
@@ -69,12 +72,12 @@ async def generate_sop_for_chunk(chunk_path: str, chunk_index: int, total_chunks
         
     return response.text
 
-async def analyze_video_chunks(chunk_paths: list[str], prompt: str, context_files: list = []):
+async def analyze_video_chunks(chunk_paths: list[str], prompt: str, context_files: list = [], context_str: str = ""):
     """Uploads and processes multiple video chunks in parallel (with context), then merges them."""
     
     tasks = []
     for i, path in enumerate(chunk_paths):
-        tasks.append(generate_sop_for_chunk(path, i, len(chunk_paths), prompt, context_files))
+        tasks.append(generate_sop_for_chunk(path, i, len(chunk_paths), prompt, context_files, context_str))
     
     # Run all chunks in parallel
     partial_sops = await asyncio.gather(*tasks)
@@ -82,7 +85,7 @@ async def analyze_video_chunks(chunk_paths: list[str], prompt: str, context_file
     print("All chunks processed. Merging...")
     
     # Merge
-    final_sop = merge_partial_sops(partial_sops, model_name)
+    final_sop = await merge_partial_sops(partial_sops, model_name, context_str)
     
     return final_sop
 

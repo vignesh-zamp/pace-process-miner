@@ -1,10 +1,11 @@
 import os
 import time
 import shutil
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import asyncio
+import json
 import google.generativeai as genai
 from dotenv import load_dotenv
 from services.context_manager import process_sop_context
@@ -53,10 +54,16 @@ from services.video_splitter import split_video
 from services.ai_service import analyze_video_chunks
 
 @app.post("/analyze")
-async def analyze_multimodal(files: List[UploadFile] = File(...)):
+async def analyze_multimodal(files: List[UploadFile] = File(...), file_contexts: str = Form(default="{}")):
     start_time = time.time()
     try:
         print(f"Received {len(files)} files for analysis. Hybrid Mode.")
+        
+        # Parse context mapping
+        try:
+            context_mapping = json.loads(file_contexts)
+        except json.JSONDecodeError:
+            context_mapping = {}
         
         # 1. Classification
         long_videos_local_paths = []
@@ -73,12 +80,9 @@ async def analyze_multimodal(files: List[UploadFile] = File(...)):
             
             # For simplicity: If Video > 200MB or explicitly treated as 'main video', we split.
             # But here user said "20 min batches". We should use split_video to check duration.
+            # Let's treat ALL videos as "Main" for now, or just picking the longest one?
+            # User's request: "If any videos are attached... flow is 20 min batches"
             if "video" in mime:
-                # split_video returns [original] if < 20 mins, or [parts...] if > 20 mins
-                # BUT, we want to separate "Context Videos" from "Main Process Video". 
-                # Assumption: Any Long video is a process video. Short clips might be context?
-                # Let's treat ALL videos as "Main" for now, or just picking the longest one?
-                # User's request: "If any videos are attached... flow is 20 min batches"
                 long_videos_local_paths.append(file_location)
             else:
                 context_files_local_paths.append(file_location)
@@ -93,35 +97,22 @@ async def analyze_multimodal(files: List[UploadFile] = File(...)):
         
         raw_sop = ""
 
-        # 3. Process Videos (Splitting Flow)
+        # Prepare Context String for AI
+        context_description_lines = []
+        for filename, context in context_mapping.items():
+            if context and context.strip():
+                 context_description_lines.append(f"- File '{filename}': {context}")
+        
+        context_description = "\n".join(context_description_lines)
+
         # 3. Process Videos (Parallel Orchestrator Flow)
         video_sops = []
         if long_videos_local_paths:
             print(f"Orchestrator: Found {len(long_videos_local_paths)} video(s). Processing in PARALLEL...")
             
-            async def process_single_video_flow(video_path, index, total):
-                """Helper to process one video (classify -> split -> analyze) safely."""
+            # Helper function for single video flow
+            async def process_single_video_flow(path, index, total, context_str=""):
                 try:
-                    print(f"\n--- Starting Video {index + 1}/{total}: {os.path.basename(video_path)} ---")
-                    video_name = os.path.basename(video_path).split('.')[0]
-                    chunks_dir = f"{UPLOAD_DIR}/chunks/{video_name}_{int(time.time())}"
-                    
-                    # Split
-                    chunk_paths = split_video(video_path, chunks_dir)
-                    
-                    if len(chunk_paths) > 1:
-                        print(f"  [Video {index+1}] Hybrid Mode: Split into {len(chunk_paths)} chunks.")
-                        return await analyze_video_chunks(chunk_paths, SOP_MULTIMODAL_PROMPT, gemini_context_files)
-                    else:
-                        print(f"  [Video {index+1}] Single Pass Mode (<20m).")
-                        # Upload
-                        g_vid = upload_to_gemini(video_path, mime_type="video/mp4")
-                        wait_for_files_active([g_vid])
-                        
-                        # Generate
-                        model = genai.GenerativeModel(model_name="gemini-2.5-pro")
-                        request_content = [SOP_MULTIMODAL_PROMPT, g_vid] + gemini_context_files
-                        response = await model.generate_content_async(request_content)
                         text = response.text
                         
                         # Cleanup
@@ -163,7 +154,14 @@ async def analyze_multimodal(files: List[UploadFile] = File(...)):
              # No Video, just Documents?
              print("No Video found. Document-only analysis.")
              model = genai.GenerativeModel(model_name="gemini-2.5-pro")
-             request_content = [SOP_MULTIMODAL_PROMPT] + gemini_context_files
+             
+             # Inject context into prompt if exists
+             prompt_with_context = SOP_MULTIMODAL_PROMPT
+             if context_description:
+                 prompt_with_context += f"\n\nUSER PROVIDED CONTEXT FOR ATTACHMENTS:\n{context_description}\n"
+                 prompt_with_context += "\nINSTRUCTION: Please add a final section '## Context Acknowledgement' explaining how this context was utilized."
+
+             request_content = [prompt_with_context] + gemini_context_files
              response = await model.generate_content_async(request_content)
              raw_sop = response.text
 
