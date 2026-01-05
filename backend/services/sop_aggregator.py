@@ -143,7 +143,7 @@ A STRICT Markdown SOP starting with a JSON Metadata block, followed by the exact
 *   (Briefly explain how the User Provided Context [if any] was utilized in this analysis. If no context was provided, state "N/A".)
 """
 
-def merge_partial_sops(partial_sops: list[str], model_name="gemini-2.5-pro", context_str: str = "") -> str:
+async def merge_partial_sops(partial_sops: list[str], model_name="gemini-2.5-pro", context_str: str = "") -> str:
     """Sends all partial SOPs to Gemini to be merged into one."""
     
     if not partial_sops:
