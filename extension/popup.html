@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            width: 300px;
+            padding: 15px;
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        h1 {
+            font-size: 16px;
+            color: #0f172a;
+            margin-bottom: 5px;
+        }
+
+        p {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 15px;
+        }
+
+        .status-box {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #94a3b8;
+            margin-right: 6px;
+        }
+
+        .status-indicator.recording {
+            background-color: #ef4444;
+            box-shadow: 0 0 0 2px #fecaca;
+            animation: pulse 2s infinite;
+        }
+
+        .status-text {
+            font-size: 13px;
+            font-weight: 500;
+            color: #334155;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        #startBtn {
+            background-color: #2563eb;
+            color: white;
+        }
+
+        #startBtn:hover {
+            background-color: #1d4ed8;
+        }
+
+        #stopBtn {
+            background-color: #fff;
+            border: 1px solid #cbd5e1;
+            color: #475569;
+            margin-top: 8px;
+        }
+
+        #stopBtn:hover {
+            background-color: #f1f5f9;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Pace Recorder</h1>
+    <p>Capture workflows for Process Mining</p>
+
+    <div class="status-box">
+        <span id="statusDot" class="status-indicator"></span>
+        <span id="statusText" class="status-text">Ready to Record</span>
+    </div>
+
+    <div id="controls">
+        <button id="startBtn">Start Recording (20m Chunks)</button>
+        <button id="stopBtn" class="hidden">Stop & Process</button>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+
+</html>

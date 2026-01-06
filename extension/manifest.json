@@ -1,0 +1,21 @@
+{
+    "manifest_version": 3,
+    "name": "Pace - Process Recorder",
+    "version": "1.0",
+    "description": "Records your screen in 20-minute segments and sends them to Pace for SOP generation.",
+    "permissions": [
+        "tabCapture",
+        "storage",
+        "activeTab",
+        "offscreen"
+    ],
+    "host_permissions": [
+        "http://localhost:8000/*"
+    ],
+    "action": {
+        "default_popup": "popup.html"
+    },
+    "background": {
+        "service_worker": "background.js"
+    }
+}
