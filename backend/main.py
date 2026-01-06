@@ -108,8 +108,17 @@ async def analyze_multimodal(files: List[UploadFile] = File(...), file_contexts:
 
         # 3. Process Videos (Parallel Orchestrator Flow)
         video_sops = []
+        
+        # SPLIT LOGIC: Ensure large videos are chunked (Manual Uploads)
+        final_video_chunks = []
         if long_videos_local_paths:
-            print(f"Orchestrator: Found {len(long_videos_local_paths)} video(s). Processing in PARALLEL...")
+            for v_path in long_videos_local_paths:
+                # split_video returns a list of paths (or just [v_path] if small)
+                chunks = split_video(v_path)
+                final_video_chunks.extend(chunks)
+
+        if final_video_chunks:
+            print(f"Orchestrator: Found {len(final_video_chunks)} chunks (from {len(long_videos_local_paths)} uploaded videos). Processing in PARALLEL...")
             
             # Helper function for single video flow
             async def process_single_video_flow(path, index, total, context_str=""):
@@ -139,8 +148,8 @@ async def analyze_multimodal(files: List[UploadFile] = File(...), file_contexts:
 
             # Create tasks for all videos
             tasks = [
-                process_single_video_flow(path, idx, len(long_videos_local_paths))
-                for idx, path in enumerate(long_videos_local_paths)
+                process_single_video_flow(path, idx, len(final_video_chunks))
+                for idx, path in enumerate(final_video_chunks)
             ]
             
             # Execute in parallel
@@ -149,7 +158,7 @@ async def analyze_multimodal(files: List[UploadFile] = File(...), file_contexts:
             # Filter out failures (None)
             video_sops = [res for res in results if res is not None]
             
-            print(f"\nOrchestrator: {len(video_sops)}/{len(long_videos_local_paths)} videos processed successfully.")
+            print(f"\nOrchestrator: {len(video_sops)}/{len(final_video_chunks)} videos processed successfully.")
 
             # If multiple successful videos, perform Master Merge
             if len(video_sops) > 1:
