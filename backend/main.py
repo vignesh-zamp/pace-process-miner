@@ -114,7 +114,7 @@ async def analyze_multimodal(files: List[UploadFile] = File(...), file_contexts:
         if long_videos_local_paths:
             for v_path in long_videos_local_paths:
                 # split_video returns a list of paths (or just [v_path] if small)
-                chunks = split_video(v_path)
+                chunks = split_video(v_path, UPLOAD_DIR)
                 final_video_chunks.extend(chunks)
 
         if final_video_chunks:
@@ -164,7 +164,7 @@ async def analyze_multimodal(files: List[UploadFile] = File(...), file_contexts:
             if len(video_sops) > 1:
                 print(f"\n--- Master Merge: Consolidating {len(video_sops)} Video SOPs ---")
                 from services.sop_aggregator import merge_partial_sops
-                raw_sop = merge_partial_sops(video_sops)
+                raw_sop = await merge_partial_sops(video_sops)
             elif video_sops:
                 raw_sop = video_sops[0]
             else:
