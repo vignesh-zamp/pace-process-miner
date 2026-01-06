@@ -30,7 +30,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 def read_root():
     return {"status": "active", "service": "Process Miner AI"}
 
-from services.storage_service import list_all_documents, read_document
+from services.storage_service import list_all_documents, read_document, load_latest_sop, save_next_version
 
 # ... existing code ...
 
@@ -52,9 +52,10 @@ from services.multimodal_service import process_and_upload_files, upload_to_gemi
 from services.sop_generator import SOP_MULTIMODAL_PROMPT
 from services.video_splitter import split_video
 from services.ai_service import analyze_video_chunks
+from services.sop_aggregator import merge_partial_sops
 
 @app.post("/analyze")
-async def analyze_multimodal(files: List[UploadFile] = File(...), file_contexts: str = Form(default="{}")):
+async def analyze_multimodal(files: List[UploadFile] = File(...), file_contexts: str = Form(default="{}"), session_id: str = Form(None)):
     start_time = time.time()
     try:
         print(f"Received {len(files)} files for analysis. Hybrid Mode.")
@@ -113,6 +114,16 @@ async def analyze_multimodal(files: List[UploadFile] = File(...), file_contexts:
             # Helper function for single video flow
             async def process_single_video_flow(path, index, total, context_str=""):
                 try:
+                        print(f"Processing chunk {index+1}/{total}...")
+                        g_vid = upload_to_gemini(path)
+                        wait_for_files_active([g_vid])
+                        
+                        model = genai.GenerativeModel(model_name="gemini-2.5-pro")
+                        prompt = SOP_MULTIMODAL_PROMPT
+                        if context_str:
+                             prompt += f"\n\nUSER PROVIDED CONTEXT:\n{context_str}"
+                             
+                        response = await model.generate_content_async([prompt, g_vid])
                         text = response.text
                         
                         # Cleanup
@@ -123,7 +134,7 @@ async def analyze_multimodal(files: List[UploadFile] = File(...), file_contexts:
                         return text
                         
                 except Exception as e:
-                    print(f"❌ ERROR processing video {os.path.basename(video_path)}: {e}")
+                    print(f"❌ ERROR processing video {os.path.basename(path)}: {e}")
                     return None # Return None to signal failure but keep going
 
             # Create tasks for all videos
@@ -165,11 +176,35 @@ async def analyze_multimodal(files: List[UploadFile] = File(...), file_contexts:
              response = await model.generate_content_async(request_content)
              raw_sop = response.text
 
-        # 4. Context Processing
+        # 4. Context Processing / Saving
         # Calculate time
         end_time = time.time()
         duration = round(end_time - start_time, 2)
-        
+
+        # EXTENSION LOGIC: If session_id is present, handle iterative update
+        if session_id:
+            print(f"Extension Mode: Handling Session {session_id}")
+            # 1. Try to load previous SOP
+            prev_sop = load_latest_sop("Shadow_Sessions", f"Session_{session_id}")
+            
+            final_result = raw_sop
+            
+            if prev_sop:
+                print("Found previous SOP version. Merging...")
+                # Merge Previous + New
+                merged_sop = await merge_partial_sops([prev_sop, raw_sop], model_name="gemini-2.5-pro", context_str=context_description)
+                final_result = merged_sop
+            else:
+                print("No previous SOP found. Starting new session.")
+                final_result = raw_sop # First chunk
+
+            # 2. Save new version (Shadow_Sessions/Session_X_vN.md)
+            saved_path = save_next_version("Shadow_Sessions", f"Session_{session_id}", final_result, processing_time=duration)
+            print(f"Saved updated SOP to: {saved_path}")
+            
+            return {"sop": final_result, "status": "updated", "path": saved_path}
+
+        # STANDARD FLOW (Drag & Drop)
         result = await process_sop_context(raw_sop, processing_time=duration)
         
         # Cleanup Context Files
@@ -178,9 +213,6 @@ async def analyze_multimodal(files: List[UploadFile] = File(...), file_contexts:
                 genai.delete_file(g_file.name)
             except:
                 pass
-        
-        # Cleanup chunks? 
-        # shutil.rmtree(chunks_dir, ignore_errors=True) # Logic needs update for multiple dirs
         
         return result
         
