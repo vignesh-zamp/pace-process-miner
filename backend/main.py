@@ -49,7 +49,7 @@ async def get_document(path: str):
 
 from typing import List
 from services.multimodal_service import process_and_upload_files, upload_to_gemini, wait_for_files_active, get_mime_type
-from services.sop_generator import SOP_MULTIMODAL_PROMPT
+from services.sop_generator import SOP_MULTIMODAL_PROMPT, CALL_ANALYSIS_PROMPT
 from services.video_splitter import split_video
 from services.ai_service import analyze_video_chunks
 from services.sop_aggregator import merge_partial_sops
