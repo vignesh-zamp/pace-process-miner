@@ -6,9 +6,10 @@ interface VideoUploadProps {
     onSopGenerated: (sop: string, time?: number) => void;
     isLoading: boolean;
     setIsLoading: (loading: boolean) => void;
+    analysisMode: 'SOP' | 'CALL';
 }
 
-const VideoUpload: React.FC<VideoUploadProps> = ({ onSopGenerated, isLoading, setIsLoading }) => {
+const VideoUpload: React.FC<VideoUploadProps> = ({ onSopGenerated, isLoading, setIsLoading, analysisMode }) => {
     const [error, setError] = useState<string | null>(null);
     const [dragActive, setDragActive] = useState(false);
     const [selectedFiles, setSelectedFiles] = useState<{ file: File; context: string }[]>([]);
@@ -49,6 +50,7 @@ const VideoUpload: React.FC<VideoUploadProps> = ({ onSopGenerated, isLoading, se
         });
 
         formData.append('file_contexts', JSON.stringify(contextMap));
+        formData.append('analysis_mode', analysisMode);
 
         try {
             const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';

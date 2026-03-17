@@ -64,10 +64,10 @@ def extract_metadata(sop_text: str):
     # Fallback
     return {"company_name": "General", "process_name": "New Process"}, sop_text
 
-async def process_sop_context(raw_sop: str, processing_time: float = 0.0, model_name="gemini-2.5-pro"):
+async def process_sop_context(raw_sop: str, processing_time: float = 0.0, model_name="gemini-2.5-pro", analysis_mode: str = "SOP"):
     """
     1. Extracts metadata.
-    2. ROUTER: Checks identity against DB.
+    2. ROUTER: Checks identity against DB (Only for SOP mode).
     3. Merges or Saves.
     4. Saves with processing time metadata.
     """
@@ -77,14 +77,20 @@ async def process_sop_context(raw_sop: str, processing_time: float = 0.0, model_
     extracted_metadata, clean_text = extract_metadata(raw_sop)
     draft_company = extracted_metadata.get("company_name", "General")
     draft_process = extracted_metadata.get("process_name", "New Process")
+
+    # Override for Call Analysis
+    if analysis_mode == "CALL":
+        draft_company = "Call_Analysis"
+        draft_process = "Meeting_Analysis"
     
-    # 2. Router: Check against existing DB
+    # 2. Router: Check against existing DB (Skip if CALL)
     existing_processes = get_all_process_identifiers()
     print(f"Router Check: Checking '{draft_process}' against {len(existing_processes)} existing files.")
     
     model = genai.GenerativeModel(model_name=model_name)
     
-    if existing_processes:
+    if analysis_mode != "CALL" and existing_processes:
+        # ... existing router logic ...
         router_response = await model.generate_content_async([
             ROUTER_PROMPT, 
             f"NEW SOP METADATA: {json.dumps(extracted_metadata)}",

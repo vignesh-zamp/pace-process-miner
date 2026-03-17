@@ -55,10 +55,19 @@ from services.ai_service import analyze_video_chunks
 from services.sop_aggregator import merge_partial_sops
 
 @app.post("/analyze")
-async def analyze_multimodal(files: List[UploadFile] = File(...), file_contexts: str = Form(default="{}"), session_id: str = Form(None)):
+async def analyze_multimodal(
+    files: List[UploadFile] = File(...), 
+    file_contexts: str = Form(default="{}"), 
+    session_id: str = Form(None),
+    analysis_mode: str = Form("SOP")  # "SOP" or "CALL"
+):
     start_time = time.time()
     try:
-        print(f"Received {len(files)} files for analysis. Hybrid Mode.")
+        print(f"Received {len(files)} files for analysis. Hybrid Mode. Mode: {analysis_mode}")
+        
+        # ... existing classification and upload logic ...
+        # (Assuming the rest of the logic remains mostly the same, 
+        # but we need to pass analysis_mode to orchestrator and context processor)
         
         # Parse context mapping
         try:
@@ -128,7 +137,7 @@ async def analyze_multimodal(files: List[UploadFile] = File(...), file_contexts:
                         wait_for_files_active([g_vid])
                         
                         model = genai.GenerativeModel(model_name="gemini-2.5-pro")
-                        prompt = SOP_MULTIMODAL_PROMPT
+                        prompt = CALL_ANALYSIS_PROMPT if analysis_mode == "CALL" else SOP_MULTIMODAL_PROMPT
                         if context_str:
                              prompt += f"\n\nUSER PROVIDED CONTEXT:\n{context_str}"
                              
@@ -148,7 +157,7 @@ async def analyze_multimodal(files: List[UploadFile] = File(...), file_contexts:
 
             # Create tasks for all videos
             tasks = [
-                process_single_video_flow(path, idx, len(final_video_chunks))
+                process_single_video_flow(path, idx, len(final_video_chunks), context_description)
                 for idx, path in enumerate(final_video_chunks)
             ]
             
@@ -164,7 +173,7 @@ async def analyze_multimodal(files: List[UploadFile] = File(...), file_contexts:
             if len(video_sops) > 1:
                 print(f"\n--- Master Merge: Consolidating {len(video_sops)} Video SOPs ---")
                 from services.sop_aggregator import merge_partial_sops
-                raw_sop = await merge_partial_sops(video_sops)
+                raw_sop = await merge_partial_sops(video_sops, analysis_mode=analysis_mode)
             elif video_sops:
                 raw_sop = video_sops[0]
             else:
@@ -176,7 +185,7 @@ async def analyze_multimodal(files: List[UploadFile] = File(...), file_contexts:
              model = genai.GenerativeModel(model_name="gemini-2.5-pro")
              
              # Inject context into prompt if exists
-             prompt_with_context = SOP_MULTIMODAL_PROMPT
+             prompt_with_context = CALL_ANALYSIS_PROMPT if analysis_mode == "CALL" else SOP_MULTIMODAL_PROMPT
              if context_description:
                  prompt_with_context += f"\n\nUSER PROVIDED CONTEXT FOR ATTACHMENTS:\n{context_description}\n"
                  prompt_with_context += "\nINSTRUCTION: Please add a final section '## Context Acknowledgement' explaining how this context was utilized."
@@ -214,7 +223,7 @@ async def analyze_multimodal(files: List[UploadFile] = File(...), file_contexts:
             return {"sop": final_result, "status": "updated", "path": saved_path}
 
         # STANDARD FLOW (Drag & Drop)
-        result = await process_sop_context(raw_sop, processing_time=duration)
+        result = await process_sop_context(raw_sop, processing_time=duration, analysis_mode=analysis_mode)
         
         # Cleanup Context Files
         for g_file in gemini_context_files:

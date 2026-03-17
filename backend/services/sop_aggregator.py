@@ -143,29 +143,43 @@ A STRICT Markdown SOP starting with a JSON Metadata block, followed by the exact
 *   (Briefly explain how the User Provided Context [if any] was utilized in this analysis. If no context was provided, state "N/A".)
 """
 
-async def merge_partial_sops(partial_sops: list[str], model_name="gemini-2.5-pro", context_str: str = "") -> str:
+CALL_MERGE_PROMPT = """
+You are an expert Meeting Analyst. 
+You have been given multiple "Partial Call Analysis Reports" extracted from different segments of the same meeting/call.
+
+Your goal is to MERGE these partial inputs into one single, cohesive, and comprehensive Meeting Analysis Report.
+
+Input:
+A list of partial analysis texts.
+
+Output: 
+A STRICT Markdown Report starting with a JSON Metadata block, followed by the structure:
+1. Executive Summary
+2. Diarized Transcript (Ensure continuous timestamps and consistent speaker labels)
+3. Key Insights & Reasoning
+4. Action Items & Next Steps
+5. Follow-up Email Draft
+
+## RULES
+1. **Deduplicate**: If segments overlap in the transcript, merge them seamlessly.
+2. **Consistency**: Ensure Speaker labels (e.g., Speaker 1) refer to the same person across all segments.
+3. **Synthesis**: Consolidate insights and action items into unified sections.
+"""
+
+async def merge_partial_sops(partial_sops: list[str], model_name="gemini-2.5-pro", context_str: str = "", analysis_mode: str = "SOP") -> str:
     """Sends all partial SOPs to Gemini to be merged into one."""
     
     if not partial_sops:
         return ""
         
     if len(partial_sops) == 1:
-        # even if single, we might want to append context acknowledgement if it's missing?
-        # But single chunk generation already had context injected. 
-        # However, the user wants EXPLICIT acknowledgement at the end.
-        # If it's single chunk, the prompt I added in ai_service mostly guided 'extraction'. 
-        # It didn't explicitly ask for an Acknowledgement Section in chunks.
-        # So we might want to re-process or just append? 
-        # Actually, for simplicity, let's just return it. The user will see context usage in the steps.
-        # But if they strictly want the section, we should ideally ask for it in chunk prompt too?
-        # Let's stick to merge logic for now.
         return partial_sops[0]
 
     combined_text = "\n\n=== NEXT PARTIAL SOP ===\n\n".join(partial_sops)
     
-    prompt_with_context = MERGE_PROMPT
+    prompt_with_context = CALL_MERGE_PROMPT if analysis_mode == "CALL" else MERGE_PROMPT
     if context_str:
-        prompt_with_context += f"\n\nUSER PROVIDED CONTEXT FOR ATTACHMENTS:\n{context_str}\n\nINSTRUCTION: Please ensure you populate Section 5.2 explaining how this context was applied."
+        prompt_with_context += f"\n\nUSER PROVIDED CONTEXT FOR ATTACHMENTS:\n{context_str}\n\nINSTRUCTION: Please ensure you populate the context acknowledgement section."
     
     model = genai.GenerativeModel(model_name=model_name)
     

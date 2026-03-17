@@ -13,6 +13,7 @@ function App() {
   const [processingTime, setProcessingTime] = useState<number | undefined>(undefined);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+  const [analysisMode, setAnalysisMode] = useState<'SOP' | 'CALL'>('SOP');
 
   useEffect(() => {
     const auth = localStorage.getItem('isAuthenticated');
@@ -74,7 +75,23 @@ function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-6">
+            {/* Mode Toggle */}
+            <div className="flex items-center bg-gray-800 rounded-lg p-1 border border-gray-700">
+              <button 
+                onClick={() => setAnalysisMode('SOP')}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${analysisMode === 'SOP' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+              >
+                SOP MODE
+              </button>
+              <button 
+                onClick={() => setAnalysisMode('CALL')}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${analysisMode === 'CALL' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+              >
+                CALL ANALYSIS
+              </button>
+            </div>
+
             {/* Status Badge */}
             {isLoading && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full">
@@ -114,6 +131,7 @@ function App() {
                   onSopGenerated={handleSopGenerated}
                   isLoading={isLoading}
                   setIsLoading={setIsLoading}
+                  analysisMode={analysisMode}
                 />
               </div>
             )}
